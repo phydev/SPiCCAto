@@ -1,3 +1,2 @@
-# FORCE
+# SPiCCAto - Software PaCkage for Cell reseArch
 
-SPiCCAto - Software PaCkage for Cell reseArch
