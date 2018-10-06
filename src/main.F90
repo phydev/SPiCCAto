@@ -44,12 +44,20 @@ program main
     read (arg_gamma,*) gamma
     dir_name = trim(sim_id)
 
+    call system('mkdir '//trim(dir_name))
+
+    write(*,'(A,A)') " Simulation ID : ", sim_id
+    write(*,'(A,I10)') " Random seed   : ", iseed
+    write(*,'(A,F10.2)') " Density       : ", density
+    write(*,'(A,F10.2)') " Adhesion      : ", eta
+    write(*,'(A,F10.2)') " Chemotaxis    : ", chi
+    write(*,'(A,F10.2)') " Repulsion     : ", gamma
     cm = (/ M_TEN, M_TEN, M_TEN /)
     
     chi = 0.0
     volume_target = (M_FOUR/M_THREE)*M_PI*radius**3
     call phi%initialize(20,20,20,'Neumann',cm,radius)
-    call sub%initialize(100,30,30,'periodic')
+    call sub%initialize(200,30,30,'periodic')
 
     tstep = 200000
     output_period = 1000
@@ -86,21 +94,22 @@ program main
         call phi%com 
         dr = phi%rcom-cm_old
 
-        if(dr(1).ge.1.or.dr(2).ge.1.or.dr(3).ge.1  ) then
-           do ip=0, phi_old%nodes
-              s = int(anint(phi%position(ip) + dr) )
-              phi_old%grid(ip) = phi%gt(phi%ip(s) )
-          end do
-          call phi%copy(phi_old)
-        else
+        ! if(dr(1).ge.1.or.dr(2).ge.1.or.dr(3).ge.1  ) then
+        !    do ip=0, phi_old%nodes
+        !       s = int(anint(phi%position(ip) + dr) )
+        !       phi_old%grid(ip) = phi%gt(phi%ip(s) )
+        !   end do
+        !   call phi%copy(phi_old)
+        ! else
             call phi_old%copy(phi)
-        end if
+        ! end if
 
         if(output_counter.ge.output_period) then
             output_counter = 0
             write(*,*) nstep
             call format_this(nstep,format_string)   
             write(file_name,format_string) nstep
+            file_name = sim_id//"/phi"//file_name
             call phi%output(file_name,sub,int(phi%rcom))
         end if
 
@@ -110,13 +119,13 @@ program main
 
         ctime = ctime + (time_end - time_init)
 
-        if(nstep.eq.100) then
+        if(nstep.eq.output_period) then
           ctime = (ctime*(tstep-nstep) )/6000.d0
 
           if( ctime>60.d0) then
-            write(*,'(A,F10.2)') "Estimated time (hour): ",ctime/60.d0
+            write(*,'(A,F10.2)') " Estimated time (hour): ",ctime/60.d0
           else
-            write(*,'(A,F10.2)') "Estimated time (min): ",ctime
+            write(*,'(A,F10.2)') " Estimated time (min): ",ctime
           end if
         end if
 

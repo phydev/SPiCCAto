@@ -38,14 +38,14 @@ module global
   REAL(8), public, parameter :: M_HALF        = 0.5
 
   !> fixed model parameters
-  REAL, public :: dt                       = 0.005
-  REAL, public :: radius                   = 6.0
-  REAL, public :: alpha_v                  = 1.0
-  REAL, public :: epsilon                  = 1.0
+  REAL, public, parameter :: dt                       = 0.005
+  REAL, public, parameter  :: radius                   = 6.0
+  REAL, public, parameter  :: alpha_v                  = 1.0
+  REAL, public, parameter  :: epsilon                  = 1.0
 
   !> some strings
   CHARACTER(len=:), allocatable, public :: string, dir_name, sim_id, format_string
-  CHARACTER(len=10), public :: arg_iseed, arg_density, arg_chi, arg_gamma, arg_eta, arg_simid, file_name, file_id
+  CHARACTER(len=20), public :: arg_iseed, arg_density, arg_chi, arg_gamma, arg_eta, arg_simid, file_name, file_id
 
   INTEGER, allocatable, public :: sphere(:,:)
   INTEGER, public :: ip, s(3), nstep, tstep, iseed, output_counter, output_period, np_sphere

@@ -262,7 +262,7 @@ contains
       nodes = this%nodes
     end if
 
-    OPEN(UNIT=tag, FILE="phi"//trim(filename)//".vti" )
+    OPEN(UNIT=tag, FILE=trim(filename)//".vti" )
     write(tag,'(A)')'<?xml version="1.0"?>' 
     write(tag,'(A)')'<VTKFile type="ImageData" version="0.1" byte_order="LittleEndian">'
     write(tag,'(A,I1,A,I3,A,I1,A,I3,A,I1,A,I3,A)')'  <ImageData WholeExtent="',0,' ',L(1),&
