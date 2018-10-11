@@ -52,9 +52,10 @@ program main
     write(*,'(A,F10.2)') " Adhesion      : ", eta
     write(*,'(A,F10.2)') " Chemotaxis    : ", chi
     write(*,'(A,F10.2)') " Repulsion     : ", gamma
-    cm = (/ M_TEN, M_TEN, M_TEN /)
-    
-    chi = 0.0
+ 
+
+    cm = (/M_TEN, M_TEN, M_TEN/)
+
     volume_target = (M_FOUR/M_THREE)*M_PI*radius**3
     call phi%initialize(20,20,20,'Neumann',cm,radius)
     call sub%initialize(200,30,30,'periodic')
@@ -82,27 +83,39 @@ program main
         call CPU_TIME(time_init)
 
         call phi%com
-        cm_old = phi%rcom
+      
+
+!        write(*,'(F10.2,F10.2,F10.2,F10.2,F10.2,F10.2,I3)'), phi%gcom, phi%lcom, nstep
 
         do ip=0, phi%nodes
+
+            call vec_local2global(s, int( anint(phi%gcom)), phi%position(ip))
+            !print*, s
+            ip_global = sub%ip(s)
             gradient = phi%gradient(ip)
             phi%grid(ip) = phi_old%gt(ip) + dt*(-chi*gradient(1) + phi_old%laplacian(ip) + &
                 epsilon*phi_old%gt(ip)*(1.0-phi_old%gt(ip))*(phi_old%gt(ip) -0.5 &
-             + alpha_v*(volume_target-phi%volume) - gamma*h(sub%gt(ip)) ) )   
+             + alpha_v*(volume_target-phi%volume) - gamma*h(sub%gt(ip_global)) ) )  
+
         end do
 
         call phi%com 
-        dr = phi%rcom-cm_old
+      
+        dr = anint(phi%lcom-(/ phi%L(1)/2, phi%L(1)/2, phi%L(1)/2 /))
 
-        ! if(dr(1).ge.1.or.dr(2).ge.1.or.dr(3).ge.1  ) then
-        !    do ip=0, phi_old%nodes
-        !       s = int(anint(phi%position(ip) + dr) )
-        !       phi_old%grid(ip) = phi%gt(phi%ip(s) )
-        !   end do
-        !   call phi%copy(phi_old)
-        ! else
-            call phi_old%copy(phi)
-        ! end if
+         if(abs(dr(1)).ge.1.or.abs(dr(2)).ge.1.or.abs(dr(3)).ge.1. ) then
+            phi%gcom = phi%gcom + dr
+         !   print*, dr
+            do ip=0, phi_old%nodes
+               s =  phi%position(ip) + dr(1:3)
+               phi_old%grid(ip) = phi%gt(phi%ip(s) )
+           end do
+           call phi%copy(phi_old)
+
+         else
+           call phi_old%copy(phi)
+
+         end if
 
         if(output_counter.ge.output_period) then
             output_counter = 0
@@ -110,7 +123,8 @@ program main
             call format_this(nstep,format_string)   
             write(file_name,format_string) nstep
             file_name = sim_id//"/phi"//file_name
-            call phi%output(file_name,sub,int(phi%rcom))
+            call sub%output(file_name,phi) !! output the cell field phi inside the simulation box of sub.
+           !!call phi%output(file_name)
         end if
 
         
@@ -119,7 +133,7 @@ program main
 
         ctime = ctime + (time_end - time_init)
 
-        if(nstep.eq.output_period) then
+        if(nstep.eq.500) then
           ctime = (ctime*(tstep-nstep) )/6000.d0
 
           if( ctime>60.d0) then
