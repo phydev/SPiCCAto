@@ -44,7 +44,7 @@ module class_mesh
   end type mesh
 
   type, extends(mesh), public :: cell
-    real :: rcom(3), volume
+    real :: lcom(3), gcom(3), volume
 
     contains         
       procedure :: com => calculate_com
@@ -68,7 +68,7 @@ contains
     ALLOCATE(this%grid(0:this%nodes-1))
   end subroutine mesh_initialize
 
-  subroutine cell_initialize(this, x1, x2, x3, b, s, radius)
+  subroutine cell_initialize(this, x1, x2, x3, b, s, radius) 
     class(cell) :: this
     integer, intent(in) :: x1, x2, x3
     character(*), intent(in) :: b
@@ -78,10 +78,12 @@ contains
 
     this%L = (/x1, x2, x3/)
     this%nodes = x1*x2*x3
+    this%lcom = (/ int(x1/2), int(x2/2), int(x3/2) /)
     this%b = b
-    ALLOCATE(this%grid(0:this%nodes-1))
+    ALLOCATE(this%grid(0:this%nodes))
 
-    if(present(s)) this%rcom = s
+    if(present(s)) this%gcom = s
+  
 
     do ip=0, this%nodes
       r = this%position(ip)
@@ -107,14 +109,17 @@ contains
     end if
   end function mesh_position
 
-  function mesh_get_index(this, s) result(index)
+  function mesh_get_index(this, s, dx) result(index)
     class(mesh) :: this
     integer, intent(in) :: s(3)
-    integer :: index, x(3)
+    integer, optional, intent(in) :: dx(3)
+    integer :: index, x(3), ddx(3)
+    ddx = (/ 0, 0, 0 /)
+    if(present(dx)) ddx = dx
     x = s
-    call check_boundary(x(1),this%L(1),this%b)
-    call check_boundary(x(2),this%L(2),this%b)
-    call check_boundary(x(3),this%L(3),this%b)
+    call check_boundary(x(1),this%L(1),this%b,ddx(1))
+    call check_boundary(x(2),this%L(2),this%b,ddx(2))
+    call check_boundary(x(3),this%L(3),this%b,ddx(3))
 
     index = x(1) + this%L(1)*x(2) + this%L(1)*this%L(2)*x(3)
   end function mesh_get_index
@@ -124,11 +129,11 @@ contains
     integer, intent(in) :: index
     real :: item 
 
-    if(index<=this%nodes) then
+    !if(index<=this%nodes) then
         item = this%grid(index)
-    else
-        STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
-    end if
+   ! else
+    !    STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
+    !end if
   end function mesh_get_item
 
   function grid_laplacian(this,index) result(laplacian)
@@ -224,43 +229,41 @@ contains
   subroutine calculate_com(this)
 
     class(cell) :: this
-    real :: com(3), volume
-    integer :: icom(3)
+    real :: com_local(3), com_global(3), volume
+    integer :: gcom(3)
     integer :: ip, s(3)
 
     volume = 0.0
-    com = this%rcom
-    icom = int(this%rcom)
+    com_local = (/ 0.0, 0.0, 0.0 /)
+   ! com_global = this%gcom
+   ! gcom = int(this%gcom)
 
     do ip=0, this%nodes
       volume = volume + this%gt(ip)
 
-      call vec_local2global(s, icom, this%position(ip))
+     ! call vec_local2global(s, gcom, this%position(ip))
 
-      com = com + this%gt(ip)*s
+      com_local = com_local + this%gt(ip)*this%position(ip)
+    !  com_global = com_global + this%gt(ip)*s
     end do
 
-    this%rcom = com/volume
+    this%lcom = com_local/volume
+   ! this%gcom = com_global/volume
     this%volume = volume
   end subroutine
 
   
-  subroutine grid_output(this, filename, other, rcom)
+  subroutine grid_output(this, filename, other)
 
     class(mesh) :: this
-    class(mesh), optional, intent(in) :: other
-    integer, optional, intent(in) :: rcom(3)
-    character(len=10), intent(in) :: filename
-    integer :: tag, ip, L(3), nodes, s(3), icom(3), ip_new
+    class(cell), optional, intent(in) :: other
+    character(len=20), intent(in) :: filename
+    integer :: tag, ip, L(3), nodes, s(3), icom(3), ip_new, gcom(3)
 
     tag = 33423
-    if(present(other)) then
-      L = other%L
-      nodes = other%nodes
-    else
-      L = this%L
-      nodes = this%nodes
-    end if
+    L = this%L
+    nodes = this%nodes
+
 
     OPEN(UNIT=tag, FILE=trim(filename)//".vti" )
     write(tag,'(A)')'<?xml version="1.0"?>' 
@@ -272,11 +275,12 @@ contains
     write(tag,*)'        <DataArray Name="scalar_data" type="Float64" format="ascii">'
     do ip=0, nodes
       if(present(other)) then 
-        ip_new = this%ip(other%position(ip))
+        gcom = (/ int( other%gcom(1)), int( other%gcom(2)), int(other%gcom(3)) /)
+        ip_new = other%ip(this%position(ip),gcom)
+        write(tag,'(F10.2)', ADVANCE='no') other%gt(ip_new)
       else
-        ip_new = ip
+        write(tag,'(F10.2)', ADVANCE='no') this%gt(ip)
       end if
-      write(tag,'(F10.2)', ADVANCE='no') this%gt(ip_new)
     end do
     write(tag,'(A)') "" 
     write(tag,'(A)')"         </DataArray>"  

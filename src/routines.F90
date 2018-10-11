@@ -32,24 +32,32 @@ module routines
 
 contains
 
-    subroutine check_boundary(x, L, b)
+    subroutine check_boundary(x, L, b, dx)
       implicit none
 
       integer, intent(inout) :: x
       character(len=:),allocatable, intent(in) :: b
       integer, intent(in) :: L
+      integer, optional, intent(in) :: dx
+      integer :: ddx
+
+      ddx = 0
+
+      if(present(dx)) ddx = dx
+
+      x = x - ddx
 
       if(x<0) then
         if(b.eq.'periodic') then
-          x = L + x
+          x = L + x 
         else if(b.eq.'Neumann') then
-          x = 0
+          x = 0 
         end if
       else if(x>=L) then
         if(b.eq.'periodic') then
           x = x - L
         else if(b.eq.'Neumann') then
-          x = L-1
+          x = L - 1 
         end if
       end if
 
@@ -62,7 +70,7 @@ contains
       integer, intent(in) :: s_box(3), s_local(3)
       integer, intent(out) :: s_global(3)
 
-      s_global =  s_box + s_local
+      s_global =  s_box + s_local - (/ 10, 10, 10 /)
 
     end subroutine vec_local2global
 
