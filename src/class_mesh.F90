@@ -129,11 +129,11 @@ contains
     integer, intent(in) :: index
     real :: item 
 
-    !if(index<=this%nodes) then
+    if(index<=this%nodes) then
         item = this%grid(index)
-   ! else
-    !    STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
-    !end if
+    else
+        STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
+    end if
   end function mesh_get_item
 
   function grid_laplacian(this,index) result(laplacian)
@@ -235,20 +235,13 @@ contains
 
     volume = 0.0
     com_local = (/ 0.0, 0.0, 0.0 /)
-   ! com_global = this%gcom
-   ! gcom = int(this%gcom)
 
     do ip=0, this%nodes
       volume = volume + this%gt(ip)
-
-     ! call vec_local2global(s, gcom, this%position(ip))
-
       com_local = com_local + this%gt(ip)*this%position(ip)
-    !  com_global = com_global + this%gt(ip)*s
     end do
 
     this%lcom = com_local/volume
-   ! this%gcom = com_global/volume
     this%volume = volume
   end subroutine
 

@@ -32,70 +32,68 @@ module routines
 
 contains
 
-    subroutine check_boundary(x, L, b, dx)
-      implicit none
+  subroutine check_boundary(x, L, b, dx)
+    implicit none
 
-      integer, intent(inout) :: x
-      character(len=:),allocatable, intent(in) :: b
-      integer, intent(in) :: L
-      integer, optional, intent(in) :: dx
-      integer :: ddx
+    integer, intent(inout) :: x
+    character(len=:),allocatable, intent(in) :: b
+    integer, intent(in) :: L
+    integer, optional, intent(in) :: dx
+    integer :: ddx
 
-      ddx = 0
+    ddx = 0
 
-      if(present(dx)) ddx = dx
+    if(present(dx)) ddx = dx
 
-      x = x - ddx
+    x = x - ddx
 
-      if(x<0) then
-        if(b.eq.'periodic') then
-          x = L + x 
-        else if(b.eq.'Neumann') then
-          x = 0 
-        end if
-      else if(x>=L) then
-        if(b.eq.'periodic') then
-          x = x - L
-        else if(b.eq.'Neumann') then
-          x = L - 1 
-        end if
+    if(x<0) then
+      if(b.eq.'periodic') then
+        x = L + x 
+      else if(b.eq.'Neumann') then
+        x = 0 
       end if
+    else if(x>=L) then
+      if(b.eq.'periodic') then
+        x = x - L
+      else if(b.eq.'Neumann') then
+        x = L - 1 
+      end if
+    end if
+  end subroutine check_boundary
 
-    end subroutine check_boundary
+  subroutine vec_local2global(s_global, s_box, s_local)
 
-    subroutine vec_local2global(s_global, s_box, s_local)
+    implicit none
 
-      implicit none
+    integer, intent(in) :: s_box(3), s_local(3)
+    integer, intent(out) :: s_global(3)
 
-      integer, intent(in) :: s_box(3), s_local(3)
-      integer, intent(out) :: s_global(3)
+    s_global =  s_box + s_local - (/ 10, 10, 10 /)
 
-      s_global =  s_box + s_local - (/ 10, 10, 10 /)
-
-    end subroutine vec_local2global
+  end subroutine vec_local2global
 
 
- subroutine format_this(number,format_string)
+  subroutine format_this(number,format_string)
 
-      implicit none
+    implicit none
 
-      integer, intent(in) :: number
-      character(len=:), allocatable, intent(inout) :: format_string    
+    integer, intent(in) :: number
+    character(len=:), allocatable, intent(inout) :: format_string    
 
-      if (number .lt. 10) then
-        format_string = "(I1)"
-      else if(number.ge.10 .and. number.lt.100) then
-        format_string = "(I2)"
-      else if(number.ge.100 .and. number.lt.1000) then
-        format_string = "(I3)"
-      else if(number.ge.1000 .and. number.lt.10000) then
-        format_string = "(I4)"
-      else if(number.ge.10000 .and. number.lt.100000) then
-        format_string = "(I5)"
-      else if(number.ge.100000 .and. number.lt.1000000) then
-        format_string = "(I6)"
-      endif
-
+    if (number .lt. 10) then
+      format_string = "(I1)"
+    else if(number.ge.10 .and. number.lt.100) then
+      format_string = "(I2)"
+    else if(number.ge.100 .and. number.lt.1000) then
+      format_string = "(I3)"
+    else if(number.ge.1000 .and. number.lt.10000) then
+      format_string = "(I4)"
+    else if(number.ge.10000 .and. number.lt.100000) then
+      format_string = "(I5)"
+    else if(number.ge.100000 .and. number.lt.1000000) then
+      format_string = "(I6)"
+    endif
   end subroutine format_this
 
   subroutine gen_cell_points(Rc,R,ndim)
