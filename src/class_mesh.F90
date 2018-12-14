@@ -72,7 +72,7 @@ contains
     class(cell) :: this
     integer, intent(in) :: x1, x2, x3
     character(*), intent(in) :: b
-    real,  optional :: s(3), radius
+    real, optional :: s(3), radius
     integer :: ip
     real :: r(3)
 
@@ -80,15 +80,15 @@ contains
     this%nodes = x1*x2*x3
     this%lcom = (/ int(x1/2), int(x2/2), int(x3/2) /)
     this%b = b
-    ALLOCATE(this%grid(0:this%nodes))
+    ALLOCATE(this%grid(0:this%nodes-1))
 
     if(present(s)) this%gcom = s
   
 
-    do ip=0, this%nodes
+    do ip=0, this%nodes-1
       r = this%position(ip)
 
-      if( sqrt(sum((s-r)*(s-r))) <= radius) then
+      if( sqrt(sum((this%lcom -r)*(this%lcom -r))) <= radius) then
        this%grid(ip) = 1.0
       end if
     end do
@@ -100,7 +100,7 @@ contains
     integer, intent(in) :: index
     integer :: position(3)
 
-    if(index<=this%nodes) then
+    if(index<this%nodes) then
         position(3) = floor( real(index)/real((this%L(1)*this%L(2))) )      
         position(2) = floor(real(index - position(3)*this%L(1)*this%L(2))/real(this%L(1)))
         position(1) = index - this%L(1)*position(2) - position(3)*this%L(1)*this%L(2)
@@ -109,17 +109,16 @@ contains
     end if
   end function mesh_position
 
-  function mesh_get_index(this, s, dx) result(index)
+  function mesh_get_index(this, s) result(index)
     class(mesh) :: this
     integer, intent(in) :: s(3)
-    integer, optional, intent(in) :: dx(3)
     integer :: index, x(3), ddx(3)
     ddx = (/ 0, 0, 0 /)
-    if(present(dx)) ddx = dx
+
     x = s
-    call check_boundary(x(1),this%L(1),this%b,ddx(1))
-    call check_boundary(x(2),this%L(2),this%b,ddx(2))
-    call check_boundary(x(3),this%L(3),this%b,ddx(3))
+    call check_boundary(x(1),this%L(1),this%b) 
+    call check_boundary(x(2),this%L(2),this%b) 
+    call check_boundary(x(3),this%L(3),this%b)
 
     index = x(1) + this%L(1)*x(2) + this%L(1)*this%L(2)*x(3)
   end function mesh_get_index
@@ -129,7 +128,7 @@ contains
     integer, intent(in) :: index
     real :: item 
 
-    if(index<=this%nodes) then
+    if(index<this%nodes) then
         item = this%grid(index)
     else
         STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
@@ -185,22 +184,22 @@ contains
     real :: volume_target, volume
     real, allocatable :: laplacian(:)
 
-    ALLOCATE(laplacian(0:this%nodes))
+    ALLOCATE(laplacian(0:this%nodes-1))
     volume = 0.0
     volume_target = 0.0
 
-    do ip=0, this%nodes
+    do ip=0, this%nodes-1
       volume_target = volume_target + this%gt(ip)
     end do
 
     do cycles = 1, 100
       volume = 0.0
-      do ip=0, this%nodes
+      do ip=0, this%nodes-1
         laplacian(ip) = this%laplacian(ip)
         volume = volume + this%gt(ip)
       end do
 
-      do ip=0, this%nodes
+      do ip=0, this%nodes-1
         this%grid(ip) = this%grid(ip) + 0.0001*( laplacian(ip) + this%gt(ip)*(1.0-this%gt(ip))*(this%gt(ip) -0.5 &
          + (volume_target-volume) ) ) 
       end do
@@ -214,10 +213,10 @@ contains
     class(mesh), intent(in) :: other
 
     if(.not.ALLOCATED(this%grid) ) then
-      ALLOCATE(this%grid(0:other%nodes))
+      ALLOCATE(this%grid(0:other%nodes-1))
     else if(this%nodes .ne. other%nodes) then
       DEALLOCATE(this%grid)
-      ALLOCATE(this%grid(0:other%nodes))
+      ALLOCATE(this%grid(0:other%nodes-1))
     end if
 
     this%nodes = other%nodes
@@ -236,7 +235,7 @@ contains
     volume = 0.0
     com_local = (/ 0.0, 0.0, 0.0 /)
 
-    do ip=0, this%nodes
+    do ip=0, this%nodes-1
       volume = volume + this%gt(ip)
       com_local = com_local + this%gt(ip)*this%position(ip)
     end do
@@ -251,13 +250,20 @@ contains
     class(mesh) :: this
     class(cell), optional, intent(in) :: other
     character(len=20), intent(in) :: filename
-    integer :: tag, ip, L(3), nodes, s(3), icom(3), ip_new, gcom(3)
+    integer :: tag, ip, L(3), nodes, s(3), icom(3), ip_new, gcom(3), lp(3), i
 
     tag = 33423
     L = this%L
     nodes = this%nodes
+    if(present(other)) then
+      gcom = (/ int( other%gcom(1) - other%L(1)/2), int( other%gcom(2) - other%L(2)/2), int(other%gcom(3) - other%L(3)/2) /) 
 
+      call check_boundary(gcom(1),this%L(1),this%b)
+      call check_boundary(gcom(2),this%L(2),this%b)
+      call check_boundary(gcom(3),this%L(3),this%b)
 
+    end if
+   
     OPEN(UNIT=tag, FILE=trim(filename)//".vti" )
     write(tag,'(A)')'<?xml version="1.0"?>' 
     write(tag,'(A)')'<VTKFile type="ImageData" version="0.1" byte_order="LittleEndian">'
@@ -266,10 +272,10 @@ contains
     write(tag,'(A,I1,A,I3,A,I1,A,I3,A,I1,A,I3,A)')'    <Piece Extent="',0,' ',L(1),' ',0,' ',L(2),' ',0,' ',L(3),'">'
     write(tag,*)'      <CellData> '
     write(tag,*)'        <DataArray Name="scalar_data" type="Float64" format="ascii">'
-    do ip=0, nodes
+    do ip=0, nodes-1
       if(present(other)) then 
-        gcom = (/ int( other%gcom(1)), int( other%gcom(2)), int(other%gcom(3)) /)
-        ip_new = other%ip(this%position(ip),gcom)
+        call vec_global2local(s, this%position(ip), gcom, this%L)
+        ip_new = other%ip(s)
         write(tag,'(F10.2)', ADVANCE='no') other%gt(ip_new)
       else
         write(tag,'(F10.2)', ADVANCE='no') this%gt(ip)
@@ -282,6 +288,7 @@ contains
     write(tag,'(A)')"</ImageData>"
     write(tag,'(A)')"</VTKFile>"
     CLOSE(tag)
+
 
   end subroutine grid_output
 
@@ -300,7 +307,7 @@ contains
     density = 0.0
 
     do while (density.le.density_target)
-      ip = ran2(idum)*this%nodes
+      ip = ran2(idum)*(this%nodes-1)
 
       do l=1, np_sphere
         s = this%position(ip) + sphere(l,1:3)
@@ -308,7 +315,7 @@ contains
       end do
       s_volume = 0.d0
 
-      do ip=0, this%nodes
+      do ip=0, this%nodes-1
         if(this%grid(ip).gt.0.0) s_volume = s_volume +1.d0
       end do
 
@@ -317,7 +324,7 @@ contains
     end do
 
     if(present(com).and.present(radius)) then
-      do ip=0, this%nodes
+      do ip=0, this%nodes-1
        r = this%position(ip)
        if( sqrt(sum((com-r)*(com-r))) <= radius) then
         this%grid(ip) = 0.0
@@ -327,3 +334,4 @@ contains
 
   end subroutine substrate_init
 end module class_mesh
+

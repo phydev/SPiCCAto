@@ -53,14 +53,17 @@ program main
     write(*,'(A,F10.2)') " Chemotaxis    : ", chi
     write(*,'(A,F10.2)') " Repulsion     : ", gamma
  
+    box_length = (/30, 30, 30 /)
+    L = (/ 60, 60, 60 /)
+    
+    box_position = (/0, 30, 30 /)
 
-    cm = (/M_TEN, M_TEN, M_TEN/)
-
+    cm =  box_position !(/15, 10, 10 /) 
     volume_target = (M_FOUR/M_THREE)*M_PI*radius**3
-    call phi%initialize(20,20,20,'Neumann',cm,radius)
-    call sub%initialize(200,30,30,'periodic')
-
-    tstep = 200000
+    call phi%initialize(box_length(1),box_length(2),box_length(3),'Neumann',cm,radius)
+    call sub%initialize(L(1),L(2),L(3),'periodic')
+    phi%gcom = cm
+    tstep = 20000
     output_period = 1000
     output_counter = 0
 
@@ -73,10 +76,20 @@ program main
     call sub%smoothing
     call phi%smoothing
 
-    file_name = 's'
+    file_name = sim_id//'/s'
     call sub%output(file_name)
+    file_name = sim_id//'/phii'
+    call sub%output(file_name,phi)
+    file_name = sim_id//'/phil'
+    call phi%output(file_name)
+
+
+
+    ! the position of the CoM along the time will be registered in the following file
+    open(unit=1001001, file=sim_id//"/v.out" )
 
     nstep = 0
+    nprint = 0
     print*, "Starting simulation . . ."
     do while (nstep.le.tstep)
 
@@ -85,11 +98,10 @@ program main
         call phi%com
       
 
-!        write(*,'(F10.2,F10.2,F10.2,F10.2,F10.2,F10.2,I3)'), phi%gcom, phi%lcom, nstep
 
-        do ip=0, phi%nodes
+        do ip=0, phi%nodes-1
 
-            call vec_local2global(s, int( anint(phi%gcom)), phi%position(ip))
+            call vec_local2global(s, int( anint(box_position - phi%L)), phi%position(ip),L)
             !print*, s
             ip_global = sub%ip(s)
             gradient = phi%gradient(ip)
@@ -101,21 +113,35 @@ program main
 
         call phi%com 
       
-        dr = anint(phi%lcom-(/ phi%L(1)/2, phi%L(1)/2, phi%L(1)/2 /))
+        dr = int(phi%lcom-(/ phi%L(1)/2, phi%L(2)/2, phi%L(3)/2 /) )
+        dr = (/ img(dr(1),L(1)),img(dr(2),L(2)),img(dr(3),L(3)) /)
+   !     if(abs(dr(1)).ge.1.or.abs(dr(2)).ge.1.or.abs(dr(3)).ge.1. ) then
+             phi%gcom = phi%gcom + anint(dr)
+             box_position = box_position + anint(dr) 
 
-         if(abs(dr(1)).ge.1.or.abs(dr(2)).ge.1.or.abs(dr(3)).ge.1. ) then
-            phi%gcom = phi%gcom + dr
-         !   print*, dr
-            do ip=0, phi_old%nodes
+
+             do i=1,3
+              k = box_position(i)
+              j = phi%gcom(i) 
+              call check_boundary(k,L(i),sub%b)
+              call check_boundary(j,L(i),sub%b)
+              box_position(i) = k
+              phi%gcom(i) = j 
+             end do
+
+            do ip=0, phi_old%nodes-1
                s =  phi%position(ip) + dr(1:3)
                phi_old%grid(ip) = phi%gt(phi%ip(s) )
-           end do
-           call phi%copy(phi_old)
+            end do
+            call phi%copy(phi_old)
 
-         else
-           call phi_old%copy(phi)
+  !        else
 
-         end if
+!           call phi_old%copy(phi)
+
+!        end if
+
+
 
         if(output_counter.ge.output_period) then
             output_counter = 0
@@ -124,7 +150,7 @@ program main
             write(file_name,format_string) nstep
             file_name = sim_id//"/phi"//file_name
             call sub%output(file_name,phi) !! output the cell field phi inside the simulation box of sub.
-           !!call phi%output(file_name)
+            !!call phi%output(file_name)
         end if
 
         
@@ -142,12 +168,25 @@ program main
             write(*,'(A,F10.2)') " Estimated time (min): ",ctime
           end if
         end if
+   
+        if(nprint.eq.200) then !! the interval of 200 iterations was careful estimated - do not change!
+            nprint = 0
+            write(1001001,'(F10.2,F10.2,F10.2,F10.2)')  nstep*dt, phi%gcom(1), phi%gcom(2), phi%gcom(3)
+        end if
 
         output_counter = output_counter + 1
         nstep = nstep + 1
+        nprint = nprint + 1
+
+        if(phi%gcom(1).ge.190) EXIT !! if the cell reaches the end of the box, the simulation is terminated
+
     end do
 
+    call integral_path(sim_id//"v.out")
+
+    close(1001001)
 end program main
+
 
 
 

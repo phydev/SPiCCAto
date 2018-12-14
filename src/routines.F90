@@ -25,54 +25,82 @@ module routines
 
     public :: check_boundary, &
               vec_local2global, &
+              vec_global2local, &
+              img, &
               format_this, &
               gen_cell_points, &
               h, &
+              integral_path,&
+              count_lines, &
               ran2
 
 contains
 
-  subroutine check_boundary(x, L, b, dx)
+  subroutine check_boundary(x, L, b)
     implicit none
 
     integer, intent(inout) :: x
     character(len=:),allocatable, intent(in) :: b
     integer, intent(in) :: L
-    integer, optional, intent(in) :: dx
-    integer :: ddx
 
-    ddx = 0
-
-    if(present(dx)) ddx = dx
-
-    x = x - ddx
-
-    if(x<0) then
-      if(b.eq.'periodic') then
-        x = L + x 
-      else if(b.eq.'Neumann') then
-        x = 0 
+      if(x<0) then
+        if(b.eq.'periodic') then
+          x = L + x 
+        else if(b.eq.'Neumann') then
+          x = 0 
+        end if
+      else if(x>=L) then
+        if(b.eq.'periodic') then
+          x = x - L
+        else if(b.eq.'Neumann') then
+          x = L - 1 
+        end if
       end if
-    else if(x>=L) then
-      if(b.eq.'periodic') then
-        x = x - L
-      else if(b.eq.'Neumann') then
-        x = L - 1 
-      end if
-    end if
+    !end if
   end subroutine check_boundary
 
-  subroutine vec_local2global(s_global, s_box, s_local)
+  subroutine vec_local2global(s_global, s_box, s_local, box_length)
 
     implicit none
 
-    integer, intent(in) :: s_box(3), s_local(3)
+    integer, intent(in) :: s_box(3), s_local(3), box_length(3)
     integer, intent(out) :: s_global(3)
 
-    s_global =  s_box + s_local - (/ 10, 10, 10 /)
 
+    s_global =  s_box  + s_local 
+    
+    s_global(1) = img(real(s_global(1)),box_length(1))
+    s_global(2) = img(real(s_global(2)),box_length(2))
+    s_global(3) = img(real(s_global(3)),box_length(3))
   end subroutine vec_local2global
 
+
+  subroutine vec_global2local(s_local, s_global, s_box, box_length)
+
+    implicit none
+
+    integer, intent(in) :: s_global(3), s_box(3), box_length(3)
+    integer, intent(out) :: s_local(3)
+
+
+    s_local =  s_global - s_box
+
+    s_local(1) = img(real(s_local(1)),box_length(1))
+    s_local(2) = img(real(s_local(2)),box_length(2))
+    s_local(3) = img(real(s_local(3)),box_length(3))
+
+  end subroutine vec_global2local
+
+  function img(dx, x_size) result(x)
+
+    implicit none
+
+    real, intent(in) :: dx 
+    integer, intent(in) :: x_size
+    integer :: x 
+
+    x = dx - nint(real(dx) / real(x_size)) * x_size
+  end function img
 
   subroutine format_this(number,format_string)
 
@@ -135,10 +163,70 @@ contains
   function h(x) result(hx)
     real :: hx
     real, intent(in) :: x
-    hx = x**2*(3.0-2.0*x)
+    hx = x**2*(3.0-2.0*x) 
   end function h
 
-  function ran2(idum)
+!! calculate the integral path
+  subroutine integral_path(filename)
+
+    character(len=*), intent(in) :: filename
+    real, dimension(:), allocatable ::  x, y, z, t, dx, dy, dz
+    integer :: number_of_lines, i
+    real :: length
+
+    number_of_lines = count_lines(filename)
+    length = 0.0
+
+    ALLOCATE(x(0:number_of_lines))
+    ALLOCATE(y(0:number_of_lines))
+    ALLOCATE(z(0:number_of_lines))
+    ALLOCATE(t(0:number_of_lines))
+
+    ALLOCATE(dx(0:number_of_lines-1))
+    ALLOCATE(dy(0:number_of_lines-1))
+    ALLOCATE(dz(0:number_of_lines-1))
+
+
+    do i=0, number_of_lines
+      read(101010,'(F10.2,F10.2,F10.2,F10.2)') t(i), x(i),  y(i), z(i)
+    end do
+ 
+    close(101010)
+
+    do i=0, number_of_lines-1
+       dx(i) = x(i+1)-x(i)
+       dy(i) = y(i+1)-y(i)
+       dz(i) = z(i+1)-z(i)
+
+       length = length + sqrt(dx(i)**2 + dy(i)**2 + dz(i)**2)
+    end do
+
+    print*, "Path Length: ", length
+  end subroutine integral_path
+
+
+  function count_lines(filename) result(nlines)
+    !! function by Alexander Vogt && user31436
+    !! https://stackoverflow.com/questions/32682309/number-of-lines-of-a-text-file
+    implicit none
+    character(len=*)    :: filename
+    integer             :: nlines 
+    integer             :: io
+
+    open(10,file=filename, iostat=io, status='old')
+    if (io/=0) stop 'Cannot open file! '
+
+    nlines = 0
+    do
+      read(10,*,iostat=io)
+      if (io/=0) exit
+      nlines = nlines + 1
+    end do
+    close(10)
+  end function count_lines
+
+
+  function ran2(idum) !! Numerical Recipes in Fortrans
     integer :: idum,IM1,IM2,IMM1,IA1,IA2,IQ1,IQ2,IR1,IR2,NTAB,NDIV
     real :: ran2,AM,EPS,RNMX
     parameter (IM1=2147483563,IM2=2147483399,AM=1./IM1,IMM1=IM1-1, &
