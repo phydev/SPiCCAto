@@ -49,6 +49,7 @@ module class_mesh
     contains         
       procedure :: com => calculate_com
       procedure :: initialize => cell_initialize
+      procedure :: finish => end_program
   end type cell
 
   public :: substrate_init
@@ -256,12 +257,10 @@ contains
     L = this%L
     nodes = this%nodes
     if(present(other)) then
-      gcom = (/ int( other%gcom(1) - other%L(1)/2), int( other%gcom(2) - other%L(2)/2), int(other%gcom(3) - other%L(3)/2) /) 
-
+      gcom = (/ int(anint( other%gcom(1) - other%L(1)/2)), int(anint( other%gcom(2) - other%L(2)/2)), int(anint(other%gcom(3) - other%L(3)/2)) /) 
       call check_boundary(gcom(1),this%L(1),this%b)
       call check_boundary(gcom(2),this%L(2),this%b)
       call check_boundary(gcom(3),this%L(3),this%b)
-
     end if
    
     OPEN(UNIT=tag, FILE=trim(filename)//".vti" )
@@ -288,39 +287,59 @@ contains
     write(tag,'(A)')"</ImageData>"
     write(tag,'(A)')"</VTKFile>"
     CLOSE(tag)
-
-
   end subroutine grid_output
 
 
   subroutine substrate_init(this, density_target, sphere, np_sphere, idum, com, radius)
-
+    
     type(mesh), intent(inout) :: this
     real, intent(in) :: density_target
     integer, allocatable, intent(in) :: sphere(:,:)
     integer, intent(in) :: np_sphere, idum
     real, optional, intent(in) :: com(3), radius
-    integer :: l, s(3), ip, r(3)
-    real :: density, s_volume, t_volume
+    integer :: l, s(3), x(3), ip, r(3)
+    real :: density, s_volume, t_volume, v(3), dv(3), theta, phi
+    real(8) :: M_Pi = 3.1415926535897932384626433832795029
 
     t_volume = this%L(1)*this%L(2)*this%L(3)
     density = 0.0
 
-    do while (density.le.density_target)
+    do while (density.lt.density_target)
       ip = ran2(idum)*(this%nodes-1)
 
-      do l=1, np_sphere
-        s = this%position(ip) + sphere(l,1:3)
-        this%grid(this%ip(s)) = 1.d0
-      end do
-      s_volume = 0.d0
+      theta = ran2(idum)*2.0*M_Pi
+      phi = ran2(idum)*M_Pi
 
+      v(1) = sin(phi)*cos(theta)
+      v(2) = sin(phi)*sin(theta)
+      v(3) = cos(phi)
+
+      dv = v
+
+      do while (sqrt(sum(v*v))<20)
+        s = this%position(ip)
+        x(1) = anint(s(1)+v(1))
+        x(2) = anint(s(2)+v(2))
+        x(3) = anint(s(3)+v(3))
+
+        call check_boundary(x(1),this%L(1),this%b)
+        call check_boundary(x(2),this%L(2),this%b)
+        call check_boundary(x(3),this%L(3),this%b)
+
+        this%grid(this%ip(x)) = 1.d0
+
+        do l=1, np_sphere
+          s = x+sphere(l,1:3)
+          this%grid(this%ip(s)) = 1.d0
+        end do
+        v = v + dv
+      end do
+
+      s_volume = 0.d0
       do ip=0, this%nodes-1
         if(this%grid(ip).gt.0.0) s_volume = s_volume +1.d0
       end do
-
       density = s_volume/t_volume
-
     end do
 
     if(present(com).and.present(radius)) then
@@ -331,7 +350,27 @@ contains
         end if
       end do
     end if
-
   end subroutine substrate_init
+
+  function end_program(this, other, border_points) result(end)
+  
+    class(cell) :: this
+    class(mesh), intent(in) :: other
+    integer, allocatable, intent(in) :: border_points(:)
+    logical :: end
+    integer :: i, ip, gcom(3), s(3)
+
+    end = .false.
+    gcom =  (/ int( this%gcom(1) - this%L(1)/2), int( this%gcom(2) - this%L(2)/2), int(this%gcom(3) - this%L(3)/2) /) 
+    do i=1, size(border_points)
+      ip = border_points(i)
+      call vec_global2local(s, other%position(ip), gcom, other%L)
+      if(this%gt(this%ip(s))>0.1) then
+        end = .true.
+        print*, "The cell has rechead the border. "
+        EXIT
+      end if
+    end do
+  end function end_program
 end module class_mesh
 

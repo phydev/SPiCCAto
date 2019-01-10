@@ -49,9 +49,9 @@ module global
   CHARACTER(len=:), allocatable, public :: string, dir_name, sim_id, format_string
   CHARACTER(len=20), public :: arg_iseed, arg_density, arg_chi, arg_gamma, arg_eta, arg_simid, file_name, file_id
 
-  INTEGER, allocatable, public :: sphere(:,:)
+  INTEGER, allocatable, public :: sphere(:,:), border_points(:)
   INTEGER, public :: ip, s(3), L(3), box_length(3), nstep, tstep, iseed, output_counter, output_period, np_sphere, ip_global, nprint
-  INTEGER, public :: i, j, k
+  INTEGER, public :: i, j, k, n
   REAL(8), public :: cm(3), cm_old(3), dr(3), volume, density, eta, gamma, chi, gradient(3), time_init, time_end, ctime, volume_target, sr, box_position(3)
   
 

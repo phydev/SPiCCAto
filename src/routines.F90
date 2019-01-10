@@ -43,20 +43,20 @@ contains
     character(len=:),allocatable, intent(in) :: b
     integer, intent(in) :: L
 
-      if(x<0) then
-        if(b.eq.'periodic') then
-          x = L + x 
-        else if(b.eq.'Neumann') then
-          x = 0 
-        end if
-      else if(x>=L) then
-        if(b.eq.'periodic') then
-          x = x - L
-        else if(b.eq.'Neumann') then
-          x = L - 1 
-        end if
+    if(x<0) then
+      if(b.eq.'periodic') then
+        x = L + x 
+      else if(b.eq.'Neumann') then
+        x = 0 
       end if
-    !end if
+    else if(x>=L) then
+      if(b.eq.'periodic') then
+        x = x - L
+      else if(b.eq.'Neumann') then
+        x = L - 1 
+      end if
+    end if
+    
   end subroutine check_boundary
 
   subroutine vec_local2global(s_global, s_box, s_local, box_length)
@@ -65,13 +65,16 @@ contains
 
     integer, intent(in) :: s_box(3), s_local(3), box_length(3)
     integer, intent(out) :: s_global(3)
-
-
+    character(len=:),allocatable :: b
+    b = 'periodic'
     s_global =  s_box  + s_local 
-    
-    s_global(1) = img(real(s_global(1)),box_length(1))
-    s_global(2) = img(real(s_global(2)),box_length(2))
-    s_global(3) = img(real(s_global(3)),box_length(3))
+    ! not sure if img() or check_Boundary
+    call check_boundary(s_global(1),box_length(1),b)
+    call check_boundary(s_global(2),box_length(2),b)
+    call check_boundary(s_global(3),box_length(3),b)
+    !s_global(1) = img(real(s_global(1)),box_length(1))
+    !s_global(2) = img(real(s_global(2)),box_length(2))
+    !s_global(3) = img(real(s_global(3)),box_length(3))
   end subroutine vec_local2global
 
 
@@ -81,14 +84,14 @@ contains
 
     integer, intent(in) :: s_global(3), s_box(3), box_length(3)
     integer, intent(out) :: s_local(3)
-
+    character(len=:),allocatable :: b
+    b = 'periodic'
 
     s_local =  s_global - s_box
 
-    s_local(1) = img(real(s_local(1)),box_length(1))
-    s_local(2) = img(real(s_local(2)),box_length(2))
-    s_local(3) = img(real(s_local(3)),box_length(3))
-
+    call check_boundary(s_local(1),box_length(1),b)
+    call check_boundary(s_local(2),box_length(2),b)
+    call check_boundary(s_local(3),box_length(3),b)
   end subroutine vec_global2local
 
   function img(dx, x_size) result(x)
@@ -98,8 +101,10 @@ contains
     real, intent(in) :: dx 
     integer, intent(in) :: x_size
     integer :: x 
+    x = dx - anint(real(dx) / real(x_size)) * x_size
 
-    x = dx - nint(real(dx) / real(x_size)) * x_size
+    !if (dx .gt.  x_size) x = dx - x_size
+    !if (dx .lt. 0 ) x = dx + x_size
   end function img
 
   subroutine format_this(number,format_string)
