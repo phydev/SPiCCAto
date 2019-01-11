@@ -41,6 +41,7 @@ module class_mesh
       procedure :: copy => mesh_copy
       procedure :: output => grid_output
       procedure :: smoothing => grid_smoothing
+
   end type mesh
 
   type, extends(mesh), public :: cell
@@ -52,7 +53,7 @@ module class_mesh
       procedure :: finish => end_program
   end type cell
 
-  public :: substrate_init
+  public :: substrate_init, mesh_calculate_auxiliar_field
 
 contains
 
@@ -101,13 +102,13 @@ contains
     integer, intent(in) :: index
     integer :: position(3)
 
-    if(index<this%nodes) then
+    !if(index<this%nodes) then
         position(3) = floor( real(index)/real((this%L(1)*this%L(2))) )      
         position(2) = floor(real(index - position(3)*this%L(1)*this%L(2))/real(this%L(1)))
         position(1) = index - this%L(1)*position(2) - position(3)*this%L(1)*this%L(2)
-    else
-        STOP "class_mesh.F90 -> mesh_position % Error: index out of bounds!"
-    end if
+    !else
+    !    STOP "class_mesh.F90 -> mesh_position % Error: index out of bounds!"
+    !end if
   end function mesh_position
 
   function mesh_get_index(this, s) result(index)
@@ -129,11 +130,11 @@ contains
     integer, intent(in) :: index
     real :: item 
 
-    if(index<this%nodes) then
+    !if(index<this%nodes) then
         item = this%grid(index)
-    else
-        STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
-    end if
+    !else
+    !    STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
+    !end if
   end function mesh_get_item
 
   function grid_laplacian(this,index) result(laplacian)
@@ -351,6 +352,32 @@ contains
       end do
     end if
   end subroutine substrate_init
+
+  subroutine mesh_calculate_auxiliar_field(this, other)
+
+    type(mesh), intent(inout) :: this
+    type(cell), allocatable, intent(in) :: other(:)
+    integer :: gcom(3), s(3), ip_local, ip, ic
+
+    this%grid(:) = 0.d0
+    
+    do ip=0, this%nodes-1
+      do ic=1, size(other)
+ 
+        gcom = int(anint(other(ic)%gcom - other(ic)%L/2)) 
+
+        call check_boundary(gcom(1),this%L(1),this%b)
+        call check_boundary(gcom(2),this%L(2),this%b)
+        call check_boundary(gcom(3),this%L(3),this%b)  
+
+        call vec_global2local(s, this%position(ip), gcom, this%L)
+    
+        ip_local = other(ic)%ip(s)
+
+        this%grid(ip) = this%grid(ip) + other(ic)%grid(ip_local) ! for generalization, insert here kroenecker's delta (lm,l)
+      end do
+    end do
+  end subroutine mesh_calculate_auxiliar_field
 
   function end_program(this, other, border_points) result(end)
   

@@ -25,8 +25,9 @@ program main
 
     implicit none
 
-    type(cell) :: phi, phi_old
-    type(mesh) :: sub
+    type(cell), allocatable :: phi(:)
+    type(cell) :: phi_old
+    type(mesh) :: sub, aux
 
     call get_command_argument(1,arg_simid) ! simulation id
     call get_command_argument(2,arg_iseed) ! seed for the random generator
@@ -34,6 +35,7 @@ program main
     call get_command_argument(4,arg_eta) ! adhesion coefficient 
     call get_command_argument(5,arg_chi) ! chemotactic response
     call get_command_argument(6,arg_gamma) ! depletion force between the cell and fibres
+    !call get_command_argument(7,arg_number_of_cells) ! number of cells
 
     sim_id = trim(arg_simid)
     read (arg_iseed,*) iseed
@@ -41,7 +43,14 @@ program main
     read (arg_eta,*) eta
     read (arg_chi,*) chi
     read (arg_gamma,*) gamma
+    !read (arg_number_of_cells,*) arg_number_of_cells
     dir_name = trim(sim_id)
+
+    ! nc - number of cells
+    ! ic - index used to identify a given cell ic = 1 ... nc
+    nc = 9
+    ALLOCATE(box_position(1:nc,3))
+    ALLOCATE(phi(nc))
 
     call system('mkdir '//trim(dir_name))
 
@@ -52,50 +61,61 @@ program main
     write(*,'(A,F10.2)') " Chemotaxis    : ", chi
     write(*,'(A,F10.2)') " Repulsion     : ", gamma
  
-    box_length = (/30, 30, 30 /)
-    L = (/ 100, 40, 40 /)
+    box_length = (/20, 20, 20 /)
+    L = (/ 30, 30, 20 /)
     
-    box_position = (/80, 20, 20 /)
+    do ic=1,nc
+        call phi(ic)%initialize(box_length(1),box_length(2),box_length(3),'Neumann',cm,radius)
+    end do
 
-    cm =  box_position !(/15, 10, 10 /) 
+    ic = 1
+    do i=0,L(1)-10,10
+        do j=0,L(2)-10,10
+            box_position(ic,:) = (/i, j, 10/) 
+            phi(ic)%gcom = real(box_position(ic,:))
+            ic = ic + 1
+            if(ic.gt.nc) EXIT
+        end do
+        if(ic.gt.nc) EXIT
+    end do
+
+    cm =  box_position(1,:) !(/15, 10, 10 /) 
     volume_target = (M_FOUR/M_THREE)*M_PI*radius**3
-    call phi%initialize(box_length(1),box_length(2),box_length(3),'Neumann',cm,radius)
+
+
     call sub%initialize(L(1),L(2),L(3),'periodic')
-    phi%gcom = cm
-    tstep = 100000
-    output_period = 1000
+    call aux%initialize(L(1),L(2),L(3),'periodic')
+    ! do ic=1, nc
+    !     call format_this(ic,format_string)   
+    !     write(file_name,format_string) ic
+    !     file_name = sim_id//"/phi"//file_name
+    !     print*, phi(ic)%gcom
+    !     call sub%output(file_name,phi(ic)) 
+    ! end do
+ 
+    call mesh_calculate_auxiliar_field(aux,phi)
+    file_name = 'auxiliar'
+    call aux%output(file_name)
+
+    tstep = 50000
+    output_period = 500
     output_counter = 0
 
-    call phi_old%copy(phi)
     call gen_cell_points(2.0,sphere,np_sphere)
 
     print*, "Initializing substrate . . ."
-    call substrate_init(sub, density, sphere, np_sphere, iseed, cm, radius)
+    !call substrate_init(sub, density, sphere, np_sphere, iseed, cm, radius)
     print*, "Smoothing interfaces . . ."
     !call sub%smoothing
-    !call phi%smoothing
-
-    file_name = sim_id//'/s'
-    call sub%output(file_name)
-    file_name = sim_id//'/phii'
-    call sub%output(file_name,phi)
-    file_name = sim_id//'/phil'
-    call phi%output(file_name)
-
-    ALLOCATE(border_points(1:L(2)*L(3)))
-
-    n = 0
-    do ip=0, sub%nodes-1
-        s = sub%position(ip)
-        if(s(1)==L(1)-5)then 
-            n = n+1
-            border_points(n) = ip    
-        end if
+    call phi(1)%smoothing
+    do ic=2,nc
+        call phi(ic)%copy(phi(1))
     end do
-
-
-    ! the position of the CoM along the time will be registered in the following file
-    open(unit=1001001, file=sim_id//"/v.out" )
+    file_name = sim_id//'/auxi'
+    call aux%output(file_name)
+    file_name = sim_id//'/phii'
+    call sub%output(file_name,phi(1))
+    
 
     nstep = 0
     nprint = 0
@@ -104,45 +124,56 @@ program main
 
         call CPU_TIME(time_init)
 
-        call phi%com
+        call mesh_calculate_auxiliar_field(aux,phi)
 
-        do ip=0, phi%nodes-1
+        do ic=1, nc 
 
-            call vec_local2global(s, int( anint(box_position - phi%L/2)), phi%position(ip),L)
-            !print*, s
-            ip_global = sub%ip(s)
-            gradient = phi%gradient(ip)
+            call phi(ic)%com
 
-            phi%grid(ip) = phi_old%gt(ip) + dt*(-chi*sum(gradient(1:3))   + phi_old%laplacian(ip) + &
-                epsilon*phi_old%gt(ip)*(1.0-phi_old%gt(ip))*(phi_old%gt(ip) -0.5 &
-             + alpha_v*(volume_target-phi%volume) - gamma*h(sub%gt(ip_global)) ) )  
+            call phi_old%copy(phi(ic))
 
-        end do
+            do ip=0, phi(ic)%nodes-1
 
-        call phi%com 
+                s_local = box_position(ic,:) - phi(ic)%L/2
+
+                call vec_local2global(s, int(anint(s_local)), phi(ic)%position(ip),L)
+              
+                ip_global = aux%ip(s)
+                
+                gradient = 0.0 !phi(nc)%gradient(ip)
+                if(ic.eq.1) gradient = phi(1)%gradient(ip)
+                phi(ic)%grid(ip) = phi_old%gt(ip) + dt*(-chi*sum(gradient(1:2))   + phi_old%laplacian(ip) + &
+                    epsilon*phi_old%gt(ip)*(1.0-phi_old%gt(ip))*(phi_old%gt(ip) -0.5 &
+                 + alpha_v*(volume_target-phi(ic)%volume) - gamma*h(sub%gt(ip_global)) - gamma*( h(aux%gt(ip_global) ) &
+                    - gamma*h(phi_old%gt(ip)) ) ) )  
+
+            end do
+        
+            call phi(ic)%com 
       
-        dr = int(phi%lcom-(/ phi%L(1)/2, phi%L(2)/2, phi%L(3)/2 /) )
-        dr = (/ img(dr(1),L(1)),img(dr(2),L(2)),img(dr(3),L(3)) /)
- 
-        phi%gcom = phi%gcom + anint(dr)
-        box_position = box_position + anint(dr) 
+            dr = int(phi(ic)%lcom-(/ phi(ic)%L(1)/2, phi(ic)%L(2)/2, phi(ic)%L(3)/2 /) )
+            !dr = (/ img(dr(1),L(1)),img(dr(2),L(2)),img(dr(3),L(3)) /) ! I think I can just comment this. . .
+     
+            phi(ic)%gcom = phi(ic)%gcom + anint(dr)
+            box_position(ic,:) = box_position(ic,:) + anint(dr) 
 
 
-        do i=1,3
-         k = box_position(i)
-         j = phi%gcom(i) 
-         call check_boundary(k,L(i),sub%b)
-         call check_boundary(j,L(i),sub%b)
-         box_position(i) = k
-         phi%gcom(i) = j 
+            do i=1,3
+             k = box_position(ic,i)
+             j = phi(ic)%gcom(i) 
+             call check_boundary(k,L(i),sub%b)
+             call check_boundary(j,L(i),sub%b)
+             box_position(ic,i) = k
+             phi(ic)%gcom(i) = j 
+            end do
+
+            do ip=0, phi_old%nodes-1
+               s =  phi(ic)%position(ip) + dr(1:3)
+               phi_old%grid(ip) = phi(ic)%gt(phi(ic)%ip(s) )
+            end do
+            call phi(ic)%copy(phi_old)
+
         end do
-
-        do ip=0, phi_old%nodes-1
-           s =  phi%position(ip) + dr(1:3)
-           phi_old%grid(ip) = phi%gt(phi%ip(s) )
-        end do
-        call phi%copy(phi_old)
-
 
         if(output_counter.ge.output_period) then
             output_counter = 0
@@ -150,7 +181,10 @@ program main
             call format_this(nstep,format_string)   
             write(file_name,format_string) nstep
             file_name = sim_id//"/phi"//file_name
-            call sub%output(file_name,phi) !! output the cell field phi inside the simulation box of sub.
+            call aux%output(file_name,phi(1)) !! output the cell field phi inside the simulation box of sub.   
+            write(file_name,format_string) nstep
+            file_name = sim_id//"/aux"//file_name
+            call aux%output(file_name)
             !call phi%output(file_name)
         end if
 
@@ -169,21 +203,14 @@ program main
           end if
         end if
    
-        if(nprint.eq.200) then !! the interval of 200 iterations was careful estimated - do not change!
-            nprint = 0
-            write(1001001,'(F10.2,F10.2,F10.2,F10.2)')  nstep*dt, phi%gcom(1), phi%gcom(2), phi%gcom(3)
-            if(phi%finish(sub,border_points)) EXIT
-        end if
 
         output_counter = output_counter + 1
         nstep = nstep + 1
         nprint = nprint + 1
 
-        !!if(phi%gcom(1).ge.190) EXIT !! if the cell reaches the end of the box, the simulation is terminated
-
     end do
-    close(1001001)
-    call integral_path(sim_id//"v.out")
+
+
 end program main
 
 

@@ -40,8 +40,8 @@ module global
   REAL(8), public, parameter :: M_HALF        = 0.5
 
   !> fixed model parameters
-  REAL(8), public, parameter :: dt                       = 0.005
-  REAL(8), public, parameter  :: radius                   = 6.0
+  REAL(8), public, parameter :: dt                       = 0.0005
+  REAL(8), public, parameter  :: radius                   = 5.0
   REAL(8), public, parameter  :: alpha_v                  = 1.0
   REAL(8), public, parameter  :: epsilon                  = 1.0
 
@@ -49,10 +49,10 @@ module global
   CHARACTER(len=:), allocatable, public :: string, dir_name, sim_id, format_string
   CHARACTER(len=20), public :: arg_iseed, arg_density, arg_chi, arg_gamma, arg_eta, arg_simid, file_name, file_id
 
-  INTEGER, allocatable, public :: sphere(:,:), border_points(:)
+  INTEGER, allocatable, public :: sphere(:,:), border_points(:), box_position(:,:)
   INTEGER, public :: ip, s(3), L(3), box_length(3), nstep, tstep, iseed, output_counter, output_period, np_sphere, ip_global, nprint
-  INTEGER, public :: i, j, k, n
-  REAL(8), public :: cm(3), cm_old(3), dr(3), volume, density, eta, gamma, chi, gradient(3), time_init, time_end, ctime, volume_target, sr, box_position(3)
+  INTEGER, public :: i, j, k, n, nc, ic
+  REAL(8), public :: cm(3), cm_old(3), dr(3), s_local(3), volume, density, eta, gamma, chi, gradient(3), time_init, time_end, ctime, volume_target, sr
   
 
 end module global
