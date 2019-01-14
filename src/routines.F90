@@ -32,6 +32,7 @@ module routines
               h, &
               integral_path,&
               count_lines, &
+              print_header, &
               ran2 
 
 
@@ -57,7 +58,6 @@ contains
         x = L - 1 
       end if
     end if
-    
   end subroutine check_boundary
 
   subroutine vec_local2global(s_global, s_box, s_local, box_length)
@@ -69,13 +69,10 @@ contains
     character(len=:),allocatable :: b
     b = 'periodic'
     s_global =  s_box  + s_local 
-    ! not sure if img() or check_Boundary
+
     call check_boundary(s_global(1),box_length(1),b)
     call check_boundary(s_global(2),box_length(2),b)
     call check_boundary(s_global(3),box_length(3),b)
-    !s_global(1) = img(real(s_global(1)),box_length(1))
-    !s_global(2) = img(real(s_global(2)),box_length(2))
-    !s_global(3) = img(real(s_global(3)),box_length(3))
   end subroutine vec_local2global
 
 
@@ -103,9 +100,6 @@ contains
     integer, intent(in) :: x_size
     integer :: x 
     x = dx - anint(real(dx) / real(x_size)) * x_size
-
-    !if (dx .gt.  x_size) x = dx - x_size
-    !if (dx .lt. 0 ) x = dx + x_size
   end function img
 
   subroutine format_this(number,format_string)
@@ -230,6 +224,27 @@ contains
     close(10)
   end function count_lines
 
+  subroutine print_header(sim_id, iseed, density, eta, chi, gamma, nc, L, nsteps)
+    
+    implicit none
+    character(len=*), intent(in) :: sim_id
+    integer, intent(in) :: iseed, nc, nsteps, L(3)
+    real, intent(in) :: density, eta, chi, gamma
+
+    write(*,'(A)') "                            Running SPiCCAto - Software PaCkage for Cell reseArch - v.3.0 "
+    write(*,'(A)') " Developer       : mms@uc.pt "
+    write(*,'(A)') " Repository      : https://gitlab.com/phydev/SPiCCAto "
+    write(*,'(A,I3,A,I3,A,I3,A)') " Box Size        :  (",L(1)," ",L(2)," ", L(3),")"
+    write(*,'(A,A)') " Simulation ID   :        ", sim_id
+    write(*,'(A,I10)') " Random seed     : ", iseed
+    write(*,'(A,F10.2)') " Density         : ", density
+    write(*,'(A,F10.2)') " Adhesion        : ", eta
+    write(*,'(A,F10.2)') " Chemotaxis      : ", chi
+    write(*,'(A,F10.2)') " Repulsion       : ", gamma
+    write(*,'(A,I10)') " Number of cells : ", nc
+    write(*,'(A,I10)') " Iterations      : ", nsteps
+
+  end subroutine print_header
 
   function ran2(idum) !! Numerical Recipes in Fortrans
     integer :: idum,IM1,IM2,IMM1,IA1,IA2,IQ1,IQ2,IR1,IR2,NTAB,NDIV
@@ -265,7 +280,4 @@ contains
        ran2=min(AM*iy,RNMX)
        return
   end function ran2
-
-
-
 end module routines

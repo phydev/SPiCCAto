@@ -40,6 +40,7 @@ module class_mesh
       procedure :: gradient => grid_gradient
       procedure :: copy => mesh_copy
       procedure :: output => grid_output
+      procedure :: input => grid_input
       procedure :: smoothing => grid_smoothing
 
   end type mesh
@@ -102,13 +103,13 @@ contains
     integer, intent(in) :: index
     integer :: position(3)
 
-    !if(index<this%nodes) then
+    if(index<this%nodes) then
         position(3) = floor( real(index)/real((this%L(1)*this%L(2))) )      
         position(2) = floor(real(index - position(3)*this%L(1)*this%L(2))/real(this%L(1)))
         position(1) = index - this%L(1)*position(2) - position(3)*this%L(1)*this%L(2)
-    !else
-    !    STOP "class_mesh.F90 -> mesh_position % Error: index out of bounds!"
-    !end if
+    else
+        STOP "class_mesh.F90 L110 -> mesh_position % Error: index out of bounds!"
+    end if
   end function mesh_position
 
   function mesh_get_index(this, s) result(index)
@@ -130,11 +131,11 @@ contains
     integer, intent(in) :: index
     real :: item 
 
-    !if(index<this%nodes) then
+    if(index<this%nodes) then
         item = this%grid(index)
-    !else
-    !    STOP "class_mesh.F90 -> mesh_get_item % Error: index out of bounds!"
-    !end if
+    else
+        STOP "class_mesh.F90 L136 -> mesh_get_item % Error: index out of bounds!"
+    end if
   end function mesh_get_item
 
   function grid_laplacian(this,index) result(laplacian)
@@ -289,6 +290,22 @@ contains
     write(tag,'(A)')"</VTKFile>"
     CLOSE(tag)
   end subroutine grid_output
+
+  subroutine grid_input(this,filename)
+    class(mesh) :: this
+    character(len=20), intent(in) :: filename
+    character(len=20) :: temp
+    integer :: tag, i
+
+    tag = 33423
+    OPEN(UNIT=tag, FILE=trim(filename)//".vti",status='old' )
+    do i=1, 6
+      read(tag,*) temp
+      print*, temp
+    end do
+    read(tag,*) this%grid(0:this%nodes-1)
+    CLOSE(tag)
+  end subroutine grid_input
 
 
   subroutine substrate_init(this, density_target, sphere, np_sphere, idum, com, radius)
