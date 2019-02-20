@@ -111,10 +111,10 @@ program main
             call vec_local2global(s, int( anint(box_position - phi%L/2)), phi%position(ip),L)
             !print*, s
             ip_global = sub%ip(s)
-            gradient = phi%gradient(ip)
+            gradient = phi_old%gradient(ip)
 
-            phi%grid(ip) = phi_old%gt(ip) + dt*(-chi*sum(gradient(1:3))   + phi_old%laplacian(ip) + &
-                epsilon*phi_old%gt(ip)*(1.0-phi_old%gt(ip))*(phi_old%gt(ip) -0.5 &
+            phi%grid(ip) = phi_old%gt(ip) + dt*(-chi*sum(gradient(1:3))   + epsilon*phi_old%laplacian(ip) + &
+                phi_old%gt(ip)*(1.0-phi_old%gt(ip))*(phi_old%gt(ip) -0.5 &
              + alpha_v*(volume_target-phi%volume) - gamma*h(sub%gt(ip_global)) ) )  
 
         end do
