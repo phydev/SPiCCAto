@@ -10,4 +10,4 @@ This software was developed to study how the mechanical constraints imposed by t
 M. Moreira-Soares, S. Pinto-Cunha, J. R. Bordin, R. D. M. Travasso. *"Adhesion modulates cell morphology and migration within dense fibrous networks"*.  (soon in biorxiv.org)
 
 
-![alt tag](https://github.com/phydev/SPiCCAto/blob/master/docs/static_figs/cell_moving.gif)
+![alt tag](https://raw.githubusercontent.com/phydev/SPiCCAto/master/docs/static_figs/cell_moving.gif)
