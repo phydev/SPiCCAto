@@ -1,0 +1,7 @@
+#Velocity (\mu m/min) vs pores cross srction (\mu m^2)- Flexible Polymers
+#pore area +-  velocity_fix +-
+cs xerr v yerr
+10.08  1.69 0.09 0.008
+28.15 5.11 0.416 0.103    
+40.31 7.09 0.72 0.1903
+61.88 12.9 0.95 0.23
