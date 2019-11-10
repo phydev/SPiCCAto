@@ -1,9 +1,13 @@
 # Makefile
 
 # compilers/flags
-compiler = ifort 
-debug = -g -traceback
-flags = -O3 -fast -r8 $(debug) 
+# compiler = ifort 
+# debug = -g -traceback
+# flags = -O3 -fast -r8 $(debug) 
+
+compiler = gfortran
+tests = -fprofile-arcs -ftest-coverage
+flags = -03 -fdefault-real-8 $(tests)
 
 # the program
 
