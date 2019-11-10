@@ -1,0 +1,11 @@
+language: c
+sudo: required
+before_install:
+  - sudo apt-get install gfortran
+
+script:
+  - make
+  - ./run-SPiCCAto test -53453 0.2 0.0 0.8 2.0
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
