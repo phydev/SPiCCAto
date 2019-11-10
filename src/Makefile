@@ -7,7 +7,7 @@
 
 compiler = gfortran
 tests = -fprofile-arcs -ftest-coverage
-flags = -00 -fdefault-real-8 $(tests)
+flags = -fdefault-real-8 $(tests)
 
 # the program
 
