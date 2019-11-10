@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/phydev/SPiCCAto.svg?branch=master)](https://travis-ci.com/phydev/SPiCCAto)
+[![codecov](https://codecov.io/gh/phydev/trajpy/branch/master/graph/badge.svg?token=RpWeuCwJzu)](https://codecov.io/gh/phydev/SPiCCAto)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## Software PaCkage for Cell reseArch
