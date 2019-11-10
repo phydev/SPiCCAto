@@ -7,7 +7,7 @@
 
 compiler = gfortran
 tests = -fprofile-arcs -ftest-coverage
-flags = -fdefault-real-8 $(tests)
+flags = -fdefault-real-8 -ffree-line-length-512 $(tests)
 
 # the program
 
