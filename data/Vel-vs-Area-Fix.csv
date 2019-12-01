@@ -1,7 +1,0 @@
-#Velocity (\mu m/min) vs pores cross srction (\mu m^2)- Fixed Polymers
-#pore area +-  velocity_fix +-
-cs xerr v yerr
-9.78  1.93 0.018 0.0014
-27.75 4.32 0.226 0.044    
-41.13 5.12 0.519 0.1108
-60.44 12.1 0.82 0.13
