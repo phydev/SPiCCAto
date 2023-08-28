@@ -7,16 +7,14 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - name: checkout
       uses: actions/checkout@v3.5.0
     - name: Install requirements
       run: |
-        #echo 'deb http://archive.ubuntu.com/ubuntu trusty main restricted universe multiverse' | sudo tee -a /etc/apt/sources.list
-        #echo 'deb http://security.ubuntu.com/ubuntu trusty-security main restricted universe multiverse"' | sudo tee -a /etc/apt/sources.list
         sudo apt-get update 
-        sudo apt-get install gfortran-5
+        sudo apt-get install gfortran
     - name: Make & install
       run: |
         make
