@@ -11,10 +11,15 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v3.5.0
-    - run: sudo apt-get update
-    - run: sudo apt-get install --reinstall build-essential
-    - run: sudo apt-get install gfortran
-    - run: make
-    - run: "./run-SPiCCAto test -53453 0.2 0.0 0.8 2.0"
-    - run: bash <(curl -s https://codecov.io/bash)
+    - name: Install requirements
+      run: |
+        sudo apt-get update 
+        sudo apt-get install gm2
+        sudo apt-get install gfortran
+    - name: Make & install
+      run: |
+        make
+        "./run-SPiCCAto test -53453 0.2 0.0 0.8 2.0"
+    - name: Retrieve test results
+      run: bash <(curl -s https://codecov.io/bash)
       if: "${{ success() }}"
