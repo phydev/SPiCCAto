@@ -11,6 +11,8 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v3.5.0
+    - run: sudo apt-get update
+    - run: sudo apt-get install --reinstall build-essential
     - run: sudo apt-get install gfortran
     - run: make
     - run: "./run-SPiCCAto test -53453 0.2 0.0 0.8 2.0"
