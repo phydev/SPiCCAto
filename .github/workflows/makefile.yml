@@ -13,8 +13,8 @@ jobs:
       uses: actions/checkout@v3.5.0
     - name: Install requirements
       run: |
-        echo "deb http://archive.ubuntu.com/ubuntu trusty main restricted universe multiverse" >> /etc/apt/sources.list
-        echo "deb http://security.ubuntu.com/ubuntu trusty-security main restricted universe multiverse" >> /etc/apt/sources.list
+        sudo echo "deb http://archive.ubuntu.com/ubuntu trusty main restricted universe multiverse" >> /etc/apt/sources.list
+        sudo echo "deb http://security.ubuntu.com/ubuntu trusty-security main restricted universe multiverse" >> /etc/apt/sources.list
         sudo apt-get update 
         sudo apt-get install gfortran-5
     - name: Make & install
