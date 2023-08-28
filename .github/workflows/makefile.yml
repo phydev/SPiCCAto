@@ -14,7 +14,7 @@ jobs:
     - name: Install requirements
       run: |
         sudo apt-get update 
-        sudo apt-get install gfortran
+        sudo apt-get install gfortran gcc gm2
     - name: Make & install
       run: |
         make
